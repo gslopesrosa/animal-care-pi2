@@ -1,7 +1,14 @@
 import { app } from "./app.js";
+import { prisma } from "./database/prisma.js";
+import { env } from "./config/env.js";
 
-const PORT = process.env.PORT || 3000;
+app.listen(env.port, async () => {
+  console.log(`API rodando em http://localhost:${env.port}`);
 
-app.listen(PORT, () => {
-  console.log(`API rodando em http://localhost:${PORT}`);
+  try {
+    await prisma.$connect();
+    console.log("Banco de dados conectado com sucesso!");
+  } catch (error) {
+    console.error("Erro ao conectar ao banco:", error);
+  }
 });
