@@ -2,7 +2,7 @@
 
 Backend da aplicação **Animal Care**, desenvolvido como parte do Projeto Integrador II da UNIVESP.
 
-O projeto tem como objetivo ajudar tutores a organizar os cuidados dos seus animais de estimação, centralizando informações cadastrais e possibilitando a evolução para o gerenciamento de vacinas, medicamentos, consultas veterinárias e lembretes.
+O projeto tem como objetivo ajudar tutores a organizar os cuidados dos seus animais de estimação, centralizando informações cadastrais e permitindo registrar pets e acompanhar seu histórico de vacinação. A API está sendo evoluída para incluir medicamentos, consultas veterinárias, alimentação e lembretes.
 
 
 ## Tecnologias
@@ -145,16 +145,21 @@ O token de autenticação tem validade configurada no serviço de login. Atualme
 
 Os seguintes endpoints foram implementados e testados manualmente pelo Swagger.
 
-| Método | Endpoint    | Autenticação | Descrição                          |
-| ------ | ----------- | ------------ | ---------------------------------- |
-| POST   | `/users`    | Não          | Cadastrar usuário                  |
-| POST   | `/sessions` | Não          | Autenticar usuário e obter JWT     |
-| GET    | `/users/me` | Sim          | Consultar o usuário autenticado    |
-| POST   | `/pets`     | Sim          | Cadastrar pet                      |
-| GET    | `/pets`     | Sim          | Listar pets do usuário autenticado |
-| GET    | `/pets/:id` | Sim          | Consultar pet por ID               |
-| PUT    | `/pets/:id` | Sim          | Atualizar dados de um pet          |
-| DELETE | `/pets/:id` | Sim          | Excluir um pet                     |
+| Método | Endpoint                              | Autenticação | Descrição                                      |
+| ------ | ------------------------------------- | ------------ | ---------------------------------------------- |
+| POST   | `/users`                              | Não          | Cadastrar usuário                              |
+| POST   | `/sessions`                           | Não          | Autenticar usuário e obter JWT                 |
+| GET    | `/users/me`                           | Sim          | Consultar o usuário autenticado                |
+| POST   | `/pets`                               | Sim          | Cadastrar pet                                  |
+| GET    | `/pets`                               | Sim          | Listar pets do usuário autenticado             |
+| GET    | `/pets/:id`                           | Sim          | Consultar pet por ID                           |
+| PUT    | `/pets/:id`                           | Sim          | Atualizar dados de um pet                      |
+| DELETE | `/pets/:id`                           | Sim          | Excluir um pet                                 |
+| POST   | `/pets/:petId/vaccinations`            | Sim          | Cadastrar vacina para um pet                   |
+| GET    | `/pets/:petId/vaccinations`            | Sim          | Listar o histórico de vacinação do pet         |
+| GET    | `/pets/:petId/vaccinations/:id`        | Sim          | Consultar uma vacina                           |
+| PUT    | `/pets/:petId/vaccinations/:id`        | Sim          | Atualizar uma vacina                           |
+| DELETE | `/pets/:petId/vaccinations/:id`        | Sim          | Excluir uma vacina                             |
 
 ### Exemplos de requisição
 
@@ -202,13 +207,30 @@ Essa requisição exige um token JWT válido.
 }
 ```
 
+**Cadastro de vacina — `POST /pets/:petId/vaccinations`**
+
+Essa requisição exige um token JWT válido e o pet deve pertencer ao usuário autenticado.
+
+```json
+{
+  "vaccineName": "Antirrábica",
+  "applicationDate": "2026-10-13T00:00:00.000Z",
+  "nextDoseDate": "2027-10-13T00:00:00.000Z",
+  "responsible": "Dra. Ana"
+}
+```
+
+Para listar o histórico, utilize `GET /pets/:petId/vaccinations`. Para consultar, atualizar ou excluir um registro específico, utilize `GET`, `PUT` ou `DELETE` em `/pets/:petId/vaccinations/:id`.
+
 ### Regras de segurança
 
 * As senhas são armazenadas utilizando hash com bcrypt.
 * O login retorna um token JWT.
 * Os endpoints protegidos exigem autenticação.
 * As operações sobre pets verificam o vínculo entre o pet e o usuário autenticado.
-* A exclusão de um pet é definitiva e, devido aos relacionamentos configurados com `onDelete: Cascade`, também remove os registros dependentes associados.
+* As operações de vacinação verificam se o pet pertence ao usuário autenticado e limitam a consulta, atualização e exclusão ao pet informado.
+* A exclusão de uma vacina é definitiva.
+* A exclusão de um pet é definitiva e, devido aos relacionamentos configurados com `onDelete: Cascade`, também remove os registros dependentes associados, incluindo vacinações.
 
 ## Estrutura do projeto
 
@@ -237,6 +259,12 @@ backend/
 │   │   │   ├── routes/
 │   │   │   ├── schemas/
 │   │   │   └── services/
+│   │   ├── vaccinations/
+│   │   │   ├── controllers/
+│   │   │   ├── repositories/
+│   │   │   ├── routes/
+│   │   │   ├── schemas/
+│   │   │   └── services/
 │   │   └── ...
 │   ├── app.ts
 │   └── server.ts
@@ -256,6 +284,7 @@ A estrutura pode conter outros arquivos auxiliares conforme o desenvolvimento ev
 * **`generated/prisma/`**: arquivos gerados pelo Prisma Client; não devem ser editados manualmente.
 * **`modules/users/`**: funcionalidades de cadastro, autenticação e consulta de usuários.
 * **`modules/pets/`**: funcionalidades de cadastro, consulta, atualização e exclusão de pets.
+* **`modules/vaccinations/`**: cadastro, listagem, consulta, atualização e exclusão de vacinas associadas a um pet.
 * **`controllers/`**: recebem requisições e retornam respostas HTTP.
 * **`middlewares/`**: executam verificações intermediárias, como a autenticação JWT.
 * **`repositories/`**: concentram as operações de persistência usando Prisma.
@@ -285,7 +314,7 @@ O schema atual possui os seguintes modelos:
 | `Clinic`                | Clínicas associadas a usuários    |
 | `Service`               | Serviços disponíveis              |
 
-Os modelos já definidos no Prisma não significam que todos os módulos tenham endpoints implementados. No estado atual, o CRUD de pets e as operações básicas de usuários estão disponíveis; os módulos de cuidados serão desenvolvidos nas próximas etapas.
+Os modelos já definidos no Prisma não significam que todos os módulos tenham endpoints implementados. No estado atual, estão disponíveis as operações de usuários e autenticação, o CRUD de pets e o CRUD de vacinação. Os demais módulos de cuidados serão desenvolvidos nas próximas etapas.
 
 ## Arquitetura
 
@@ -324,57 +353,3 @@ Para verificar se o TypeScript compila sem gerar arquivos de saída:
 ```bash
 npx tsc --noEmit
 ```
-
-Os endpoints foram testados manualmente pelo Swagger. Também devem ser verificados cenários como:
-
-* Dados inválidos.
-* E-mail já cadastrado.
-* Senha incorreta.
-* Token ausente ou expirado.
-* Pet inexistente.
-* Tentativa de acessar um pet pertencente a outro usuário.
-
-Os testes automatizados com Jest e Supertest podem ser adicionados e documentados quando estiverem configurados no projeto.
-
-## Git e boas práticas
-
-Antes de realizar o commit, confira os arquivos modificados:
-
-```bash
-git status
-git diff
-```
-
-Garanta que o `.gitignore` contenha regras adequadas, por exemplo:
-
-```gitignore
-node_modules/
-dist/
-.env
-.env.*
-!.env.example
-coverage/
-```
-
-Não envie senhas, tokens JWT ou o arquivo `.env` para o repositório. Se algum segredo já tiver sido publicado, ele deve ser substituído.
-
-Depois de conferir as alterações e executar `npx tsc --noEmit`, prepare o commit:
-
-```bash
-git add README.md
-git add src prisma package.json package-lock.json
-git status
-git diff --cached
-git commit -m "docs: adiciona README e documenta backend"
-git push
-```
-
-Confira o conteúdo preparado para o commit antes de confirmar. Adicione outros arquivos apenas depois de revisar as alterações. Não inclua o `.env`.
-
-## Próximas etapas
-
-* Implementar o módulo de vacinação.
-* Implementar medicamentos, alimentação, consultas, atividades, higiene e lembretes.
-* Criar testes automatizados com Jest e Supertest.
-* Integrar o backend ao frontend React.
-* Revisar as configurações de segurança e preparar o deploy.
