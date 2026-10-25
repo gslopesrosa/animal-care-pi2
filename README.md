@@ -353,3 +353,81 @@ Para verificar se o TypeScript compila sem gerar arquivos de saída:
 ```bash
 npx tsc --noEmit
 ```
+
+## Frontend — Animal Care
+
+### Tecnologias utilizadas
+
+- **React** — construção da interface.
+- **TypeScript** — tipagem estática.
+- **Vite** — configuração e execução do ambiente de desenvolvimento.
+- **React Router DOM** — dependência instalada para a futura configuração das rotas.
+- **Axios** — dependência instalada para a futura integração com a API REST.
+- **Lucide React** — biblioteca de ícones.
+- **CSS** — estilização global e layout responsivo.
+
+### Identidade visual
+
+O frontend segue uma proposta visual moderna e profissional, com foco em acessibilidade, organização e facilidade de uso.
+
+| Elemento | Definição |
+|---|---|
+| Verde-sálvia | `#52796F` |
+| Verde-floresta | `#243B36` |
+| Amarelo-mel | `#E7B66B` |
+| Creme | `#F7F5EF` |
+| Branco | `#FFFFFF` |
+| Tipografia de títulos | Montserrat |
+| Tipografia de textos | Inter |
+
+### Funcionalidades implementadas inicialmente
+
+- Configuração do projeto React com TypeScript e Vite.
+- Organização inicial dos diretórios por responsabilidade.
+- Definição dos estilos globais e das variáveis de identidade visual.
+- Criação do menu lateral para desktop.
+- Criação do cabeçalho com campo de busca, notificações ilustrativas e perfil de demonstração.
+- Implementação inicial do dashboard.
+- Criação de componentes reutilizáveis para indicadores e cards de pets.
+- Adaptação inicial do layout para dispositivos móveis.
+- Inclusão de dados fictícios para demonstração visual.
+
+**Observação:** o dashboard é uma demonstração inicial. Os dados apresentados ainda não estão integrados à API, e as opções do menu não representam módulos funcionais completos.
+
+### Estrutura inicial do frontend
+
+```text
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── AppLayout.tsx
+│   │   │   ├── Header.tsx
+│   │   │   └── Sidebar.tsx
+│   │   └── ui/
+│   │       ├── PetCard.tsx
+│   │       └── StatCard.tsx
+│   ├── pages/
+│   │   └── Dashboard.tsx
+│   ├── styles/
+│   │   └── global.css
+│   ├── App.tsx
+│   └── main.tsx
+├── package.json
+└── ...
+```
+
+### Como executar o frontend
+
+Pré-requisitos: Node.js e npm instalados.
+
+No terminal, execute:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Acesse o endereço local exibido pelo Vite, normalmente `http://localhost:5173`.
+
