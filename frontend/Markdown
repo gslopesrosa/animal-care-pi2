@@ -1,0 +1,29 @@
+# Animal Care — Front-end (PI-2)
+
+Aplicação web construída com **React** e **Tailwind CSS** integrada ao ecossistema Node.js do Animal Care.
+
+## Como Executar o Projeto
+
+1. Clone o repositório e instale as dependências:
+   ```bash
+   git clone [https://github.com/gslopesrosa/animal-care-pi2-frontend.git](https://github.com/gslopesrosa/animal-care-pi2-frontend.git)
+   cd animal-care-pi2-frontend
+   npm install
+   ```
+
+2. Configure as variáveis de ambiente crie um arquivo `.env`:
+   ```env
+   VITE_API_URL=http://localhost:3000/api
+   ```
+
+3. Inicie o servidor de desenvolvimento:
+   ```bash
+   npm run dev
+   ```
+
+##  Padrões de Projeto & Convenções
+
+- **Arquitetura Feature-First**: As páginas ficam em `src/pages/` e os componentes globais em `src/components/`.
+- **Serviços de API**: Nenhuma chamada `fetch` ou `axios` deve ser feita diretamente dentro dos componentes. Use sempre as funções exportadas por `src/services/`.
+- **Estilização**: Tailwind CSS com padrão de design baseado em tokens neutros Slate (`#F8FAFC`, `#0F172A`) e detalhes em Emerald (`#059669`).
+- **Commits**: Utilize o padrão Conventional Commits (ex: `feat(pets): adiciona modal de edição de pet`).
