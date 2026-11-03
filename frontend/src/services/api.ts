@@ -9,4 +9,22 @@ const api = axios.create({
   timeout: 10000,
 });
 
+api.interceptors.request.use((config) => {
+  const storedUser = localStorage.getItem('@AnimalCare:user');
+
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+
+      if (user.token) {
+        config.headers.Authorization = `Bearer ${user.token}`;
+      }
+    } catch {
+      localStorage.removeItem('@AnimalCare:user');
+    }
+  }
+
+  return config;
+});
+
 export default api;

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { authService } from './services/authService';
+import { petService } from './services/petService';
 import {
   LayoutDashboard,
   Dog,
@@ -246,43 +248,66 @@ function ToastProvider({ children }) {
 
 const useToast = () => useContext(ToastContext);
 
-function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => loadStorage('@AnimalCare:user', INITIAL_USER));
 
-  const login = (email, password) => {
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    const savedUser = loadStorage('@AnimalCare:user', null);
+
+    // Evita reutilizar sessões antigas simuladas.
+    if (!savedUser?.token || savedUser.token.split('.').length !== 3) {
+      return null;
+    }
+
+    return savedUser;
+  });
+
+  const login = async (email, password) => {
     if (!email || !password) {
       throw new Error('Por favor, preencha todos os campos.');
     }
-    const mockUser = {
-      id: 'u-' + Date.now(),
-      name: email.split('@')[0].toUpperCase(),
-      email: email,
+
+    const response = await authService.login(email, password);
+
+    const authenticatedUser = {
+      ...response.user,
       role: 'Tutor de Pets',
-      crmv: 'CRMV-SP ' + Math.floor(10000 + Math.random() * 90000),
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
-      token: 'jwt-token-simulated-' + Date.now()
+      crmv: '',
+      avatar:
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
+      token: response.token,
     };
-    setUser(mockUser);
-    saveStorage('@AnimalCare:user', mockUser);
-    return mockUser;
+
+    setUser(authenticatedUser);
+    saveStorage('@AnimalCare:user', authenticatedUser);
+
+    return authenticatedUser;
   };
 
-  const register = (name, email, password) => {
+  
+  const register = async (name, email, password) => {
     if (!name || !email || !password) {
       throw new Error('Todos os campos são obrigatórios.');
     }
-    const newUser = {
-      id: 'u-' + Date.now(),
-      name,
-      email,
-      role: 'Novo Tutor',
-      crmv: 'CRMV-SP 99999',
-      avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=200',
-      token: 'jwt-token-new-user-' + Date.now()
+
+    // Cria a conta no banco de dados.
+    await authService.register(name, email, password);
+
+    // Faz login para obter um token JWT verdadeiro.
+    const response = await authService.login(email, password);
+
+    const authenticatedUser = {
+      ...response.user,
+      role: 'Tutor de Pets',
+      crmv: '',
+      avatar:
+        'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&q=80&w=200',
+      token: response.token,
     };
-    setUser(newUser);
-    saveStorage('@AnimalCare:user', newUser);
-    return newUser;
+
+    setUser(authenticatedUser);
+    saveStorage('@AnimalCare:user', authenticatedUser);
+
+    return authenticatedUser;
   };
 
   const logout = () => {
@@ -296,6 +321,7 @@ function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
 
 const useAuth = () => useContext(AuthContext);
 
@@ -313,6 +339,43 @@ export default function App() {
   );
 }
 
+function mapApiPetToUi(pet) {
+  const birthDate = pet.birthDate
+    ? String(pet.birthDate).slice(0, 10)
+    : '';
+
+  let age = '';
+
+  if (birthDate) {
+    const birth = new Date(`${birthDate}T00:00:00`);
+    const today = new Date();
+
+    let years = today.getFullYear() - birth.getFullYear();
+    const birthdayHasPassed =
+      today.getMonth() > birth.getMonth() ||
+      (today.getMonth() === birth.getMonth() &&
+        today.getDate() >= birth.getDate());
+
+    if (!birthdayHasPassed) {
+      years--;
+    }
+
+    age = years === 1 ? '1 ano' : `${years} anos`;
+  }
+
+  return {
+    ...pet,
+    gender: pet.sex || 'Macho',
+    birthDate,
+    age,
+    weight:
+      pet.weight != null ? `${pet.weight} kg` : '',
+    color: pet.color || '',
+    microchip: pet.microchip || '',
+    notes: pet.notes || '',
+  };
+}
+
 function MainContainer() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -320,17 +383,50 @@ function MainContainer() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // App Data State
-  const [pets, setPets] = useState(() => loadStorage('@AnimalCare:pets', INITIAL_PETS));
+  const [pets, setPets] = useState([]);
   const [vaccines, setVaccines] = useState(() => loadStorage('@AnimalCare:vaccines', INITIAL_VACCINES));
   const [selectedPetForDetail, setSelectedPetForDetail] = useState(null);
 
   useEffect(() => {
-    saveStorage('@AnimalCare:pets', pets);
-  }, [pets]);
-
-  useEffect(() => {
     saveStorage('@AnimalCare:vaccines', vaccines);
   }, [vaccines]);
+
+  
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadPetsFromApi() {
+      try {
+        const response = await petService.getAll();
+
+        if (!cancelled) {
+          const apiPets = Array.isArray(response)
+            ? response
+            : [];
+
+          setPets(apiPets.map(mapApiPetToUi));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message =
+            error.response?.data?.message ||
+            'Não foi possível carregar os pets.';
+
+          addToast(message, 'error');
+        }
+      }
+    }
+
+    loadPetsFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   if (!user) {
     return <AuthScreen />;
@@ -663,8 +759,8 @@ function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    email: 'elena@animalcare.com',
-    password: 'password123'
+    email: '',
+    password: '',
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -700,21 +796,38 @@ function AuthScreen() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validate()) return;
 
     setIsLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
 
+    try {
       if (isRegister) {
-        register(formData.name, formData.email, formData.password);
-        addToast('Conta criada com sucesso no Animal Care!', 'success');
+        await register(
+          formData.name,
+          formData.email,
+          formData.password
+        );
+
+        addToast(
+          'Conta criada com sucesso no Animal Care!',
+          'success'
+        );
       } else {
-        login(formData.email, formData.password);
-        addToast('Bem-vindo(a) de volta ao Animal Care!', 'success');
+        await login(formData.email, formData.password);
+
+        addToast(
+          'Bem-vindo(a) de volta ao Animal Care!',
+          'success'
+        );
       }
     } catch (err) {
-      addToast(err.message || 'Falha na autenticação.', 'error');
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        'Falha na autenticação.';
+
+      addToast(message, 'error');
     } finally {
       setIsLoading(false);
     }
