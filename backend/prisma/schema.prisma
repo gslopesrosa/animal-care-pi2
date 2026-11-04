@@ -28,6 +28,9 @@ model Pet {
   birthDate DateTime?
   weight    Float?
   photoUrl  String?
+  color     String?
+  microchip String?
+  notes     String?
 
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

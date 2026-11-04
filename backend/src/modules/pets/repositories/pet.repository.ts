@@ -2,7 +2,7 @@
 import { prisma } from "../../../database/prisma.js";
 import type { UpdatePetInput } from "../schemas/update-pet.schema.js";
 
-export class PetRepository {
+export class PetRepository { 
   async create(data: {
     name: string;
     species: string;
@@ -11,6 +11,9 @@ export class PetRepository {
     birthDate?: Date;
     weight?: number;
     photoUrl?: string;
+    color?: string;
+    microchip?: string;
+    notes?: string;
     userId: number;
   }) {
     return prisma.pet.create({
@@ -22,6 +25,9 @@ export class PetRepository {
         birthDate: data.birthDate,
         weight: data.weight,
         photoUrl: data.photoUrl,
+        color: data.color,
+        microchip: data.microchip,
+        notes: data.notes,
         userId: data.userId,
       },
     });

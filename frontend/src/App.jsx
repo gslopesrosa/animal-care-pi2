@@ -339,6 +339,7 @@ export default function App() {
   );
 }
 
+
 function mapApiPetToUi(pet) {
   const birthDate = pet.birthDate
     ? String(pet.birthDate).slice(0, 10)
@@ -347,20 +348,41 @@ function mapApiPetToUi(pet) {
   let age = '';
 
   if (birthDate) {
-    const birth = new Date(`${birthDate}T00:00:00`);
+    const [year, month, day] = birthDate.split('-').map(Number);
     const today = new Date();
 
-    let years = today.getFullYear() - birth.getFullYear();
-    const birthdayHasPassed =
-      today.getMonth() > birth.getMonth() ||
-      (today.getMonth() === birth.getMonth() &&
-        today.getDate() >= birth.getDate());
+    let years = today.getFullYear() - year;
+    let months = today.getMonth() + 1 - month;
 
-    if (!birthdayHasPassed) {
-      years--;
+    if (today.getDate() < day) {
+      months--;
     }
 
-    age = years === 1 ? '1 ano' : `${years} anos`;
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    if (years > 0) {
+      age = years === 1 ? '1 ano' : `${years} anos`;
+
+      if (months > 0) {
+        age += ` e ${months} ${months === 1 ? 'mês' : 'meses'}`;
+      }
+    } else {
+      const totalMonths = Math.max(
+        0,
+        (today.getFullYear() - year) * 12 +
+          today.getMonth() + 1 - month -
+          (today.getDate() < day ? 1 : 0)
+      );
+
+      age = totalMonths === 0
+        ? 'Menos de 1 mês'
+        : totalMonths === 1
+          ? '1 mês'
+          : `${totalMonths} meses`;
+    }
   }
 
   return {
@@ -368,13 +390,14 @@ function mapApiPetToUi(pet) {
     gender: pet.sex || 'Macho',
     birthDate,
     age,
-    weight:
-      pet.weight != null ? `${pet.weight} kg` : '',
+    weight: pet.weight != null ? `${pet.weight} kg` : '',
     color: pet.color || '',
     microchip: pet.microchip || '',
     notes: pet.notes || '',
+    photoUrl: pet.photoUrl || '',
   };
 }
+
 
 function MainContainer() {
   const { user } = useAuth();
@@ -1350,21 +1373,67 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
     const matchesSpecies = speciesFilter === 'Todas' || pet.species === speciesFilter;
     return matchesSearch && matchesSpecies;
   });
-
-  const handleSavePet = (petData) => {
-    if (editingPet) {
-      setPets(pets.map((p) => (p.id === editingPet.id ? { ...petData, id: editingPet.id } : p)));
-      addToast(`Dados do pet "${petData.name}" atualizados com sucesso!`, 'success');
-    } else {
-      const newPet = {
-        ...petData,
-        id: 'pet-' + Date.now()
+  
+  const handleSavePet = async (petData) => {
+    try {
+      const petPayload = {
+        name: petData.name,
+        species: petData.species,
+        breed: petData.breed || undefined,
+        sex: petData.gender || undefined,
+        birthDate: petData.birthDate
+          ? new Date(`${petData.birthDate}T00:00:00.000Z`).toISOString()
+          : undefined,
+        weight: petData.weight
+          ? Number(String(petData.weight).replace(',', '.').replace(/\s*kg$/i, ''))
+          : undefined,
+        photoUrl: petData.photoUrl || undefined,
+        color: petData.color || undefined,
+        microchip: petData.microchip || undefined,
+        notes: petData.notes || undefined,
       };
-      setPets([newPet, ...pets]);
-      addToast(`Pet "${petData.name}" cadastrado com sucesso!`, 'success');
+
+      let savedPet;
+
+      if (editingPet) {
+        savedPet = await petService.update(editingPet.id, petPayload);
+
+        const updatedPet = mapApiPetToUi(savedPet);
+
+        setPets((currentPets) =>
+          currentPets.map((pet) =>
+            pet.id === editingPet.id ? updatedPet : pet
+          )
+        );
+
+        addToast(
+          `Dados do pet "${savedPet.name}" atualizados com sucesso!`,
+          'success'
+        );
+      } else {
+        savedPet = await petService.create(petPayload);
+
+        const newPet = mapApiPetToUi(savedPet);
+
+        setPets((currentPets) => [newPet, ...currentPets]);
+
+        addToast(
+          `Pet "${savedPet.name}" cadastrado com sucesso!`,
+          'success'
+        );
+      }
+
+      setIsAddModalOpen(false);
+      setEditingPet(null);
+    } catch (error) {
+      console.error('Erro ao salvar pet:', error);
+
+      const message =
+        error.response?.data?.message ||
+        'Não foi possível salvar o pet. Verifique sua conexão com a API.';
+
+      addToast(message, 'error');
     }
-    setIsAddModalOpen(false);
-    setEditingPet(null);
   };
 
   const handleDeletePet = (id) => {
@@ -1569,18 +1638,53 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
   );
 }
 
+
+function calculatePetAge(birthDate) {
+  if (!birthDate) return '';
+
+  const [year, month, day] = birthDate.split('-').map(Number);
+  const today = new Date();
+
+  const birth = new Date(year, month - 1, day);
+
+  if (birth > today) return '';
+
+  let years = today.getFullYear() - year;
+  let months = today.getMonth() - (month - 1);
+
+  if (today.getDate() < day) {
+    months--;
+  }
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  if (years > 0) {
+    return years === 1 ? '1 ano' : `${years} anos`;
+  }
+
+  if (months <= 0) {
+    return 'Menos de 1 mês';
+  }
+
+  return months === 1 ? '1 mês' : `${months} meses`;
+}
+
+
 function PetFormModal({ pet, onClose, onSave }) {
   const [formData, setFormData] = useState({
     name: pet?.name || '',
     species: pet?.species || 'Cão',
     breed: pet?.breed || '',
     gender: pet?.gender || 'Macho',
-    age: pet?.age || '',
     birthDate: pet?.birthDate || '',
+    age: calculatePetAge(pet?.birthDate || ''),
     weight: pet?.weight || '',
     color: pet?.color || '',
     microchip: pet?.microchip || '',
-    photoUrl: pet?.photoUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+    photoUrl: pet?.photoUrl || '',
     notes: pet?.notes || ''
   });
 
@@ -1590,7 +1694,13 @@ function PetFormModal({ pet, onClose, onSave }) {
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Nome é obrigatório.';
     if (!formData.breed.trim()) errs.breed = 'Raça é obrigatória.';
-    if (!formData.age.trim()) errs.age = 'Idade é obrigatória.';
+    
+    if (!formData.birthDate) {
+      errs.birthDate = 'Data de nascimento é obrigatória.';
+    } else if (formData.birthDate > new Date().toISOString().slice(0, 10)) {
+      errs.birthDate = 'A data de nascimento não pode ser futura.';
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -1668,18 +1778,49 @@ function PetFormModal({ pet, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3"> 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Idade*</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Data de nascimento*
+              </label>
+              <input
+                type="date"
+                value={formData.birthDate}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => {
+                  const birthDate = e.target.value;
+                  setFormData((current) => ({
+                    ...current,
+                    birthDate,
+                    age: calculatePetAge(birthDate),
+                  }));
+                  setErrors((current) => ({
+                    ...current,
+                    birthDate: '',
+                  }));
+                }}
+                className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
+              />
+              {errors.birthDate && (
+                <p className="text-rose-600 text-[11px] mt-0.5">
+                  {errors.birthDate}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Idade calculada
+              </label>
               <input
                 type="text"
                 value={formData.age}
-                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                placeholder="Ex: 2 anos"
-                className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
+                readOnly
+                placeholder="Selecione a data de nascimento"
+                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 outline-none cursor-not-allowed"
               />
-              {errors.age && <p className="text-rose-600 text-[11px] mt-0.5">{errors.age}</p>}
             </div>
+
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Peso</label>

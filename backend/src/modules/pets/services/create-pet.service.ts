@@ -18,6 +18,9 @@ export class CreatePetService {
         : undefined,
       weight: data.weight,
       photoUrl: data.photoUrl,
+      color: data.color,
+      microchip: data.microchip,
+      notes: data.notes,
       userId,
     });
 

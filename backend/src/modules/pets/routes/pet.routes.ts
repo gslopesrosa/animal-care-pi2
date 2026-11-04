@@ -57,6 +57,18 @@ const deletePetController = new DeletePetController();
  *                 type: string
  *                 format: uri
  *                 example: "https://example.com/rex.jpg"
+ *               color:
+ *                  type: string
+ *                  nullable: true
+ *                  example: caramelo
+ *               microchip:
+ *                  type: string
+ *                  nullable: true
+ *                  example: 12345
+ *               notes:
+ *                  type: string
+ *                  nullable: true
+ *                  example: "Animal dócil, medo de fogos de artifício."
  *     responses:
  *       201:
  *         description: Pet cadastrado com sucesso
@@ -170,6 +182,18 @@ petRoutes.get(
  *               photoUrl:
  *                 type: string
  *                 format: uri
+ *               color:
+ *                 type: string
+ *                 nullable: true
+ *                 example: caramelo
+ *               microchip:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "12345"
+ *               notes:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "Animal dócil, medo de fogos de artifício."
  *     responses:
  *       200:
  *         description: Pet atualizado com sucesso

@@ -16,10 +16,7 @@ export const createPetSchema = z.object({
 
   sex: z.enum(["Macho", "Fêmea"]).optional(),
 
-  birthDate: z
-    .iso
-    .datetime()
-    .optional(),
+  birthDate: z.iso.datetime().optional(),
 
   weight: z
     .number()
@@ -29,6 +26,12 @@ export const createPetSchema = z.object({
   photoUrl: z
     .url("Informe uma URL válida para a foto")
     .optional(),
+
+  color: z.string().trim().optional(),
+
+  microchip: z.string().trim().optional(),
+
+  notes: z.string().trim().optional(),
 });
 
 export type CreatePetInput = z.infer<typeof createPetSchema>;
