@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { authService } from './services/authService';
 import { petService } from './services/petService';
+import { vaccinationService } from './services/vaccinationService';
 import {
   LayoutDashboard,
   Dog,
@@ -119,10 +120,8 @@ const INITIAL_VACCINES = [
     id: 'vac-1',
     petId: 'pet-1',
     name: 'Antirrábica (Raiva)',
-    appliedDate: '2025-11-10',
-    dueDate: '2026-11-10',
-    batch: 'RB-2025-99',
-    manufacturer: 'Zoetis',
+    applicationDate: '2025-11-10',
+    nextDoseDate: '2026-11-10',
     veterinarian: 'Dr. Marcos Souza (CRMV-SP 12345)',
     notes: 'Aplicação sem reações adversas.'
   },
@@ -130,10 +129,8 @@ const INITIAL_VACCINES = [
     id: 'vac-2',
     petId: 'pet-1',
     name: 'V10 (Polivalente Canina)',
-    appliedDate: '2025-10-01',
-    dueDate: '2026-10-01',
-    batch: 'V10-8841-B',
-    manufacturer: 'MSD Saúde Animal',
+    applicationDate: '2025-10-01',
+    nextDoseDate: '2026-10-01',
     veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
     notes: 'Reforço anual aplicado com sucesso.'
   },
@@ -141,10 +138,8 @@ const INITIAL_VACCINES = [
     id: 'vac-3',
     petId: 'pet-2',
     name: 'Quádrupla Felina (V4)',
-    appliedDate: '2025-11-15',
-    dueDate: '2026-11-15',
-    batch: 'FEL-4421-A',
-    manufacturer: 'Boehringer Ingelheim',
+    applicationDate: '2025-11-15',
+    nextDoseDate: '2026-11-15',
     veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
     notes: 'Proteção contra rinotraqueíte, calicivirose e panleucopenia.'
   },
@@ -152,10 +147,8 @@ const INITIAL_VACCINES = [
     id: 'vac-4',
     petId: 'pet-3',
     name: 'Gripe Canina (Traqueobronquite)',
-    appliedDate: '2025-09-01',
-    dueDate: '2026-09-01',
-    batch: 'KC-9012',
-    manufacturer: 'Zoetis',
+    applicationDate: '2025-09-01',
+    nextDoseDate: '2026-09-01',
     veterinarian: 'Dr. Renato Lima (CRMV-SP 88912)',
     notes: 'Vacina com atraso no reforço.'
   },
@@ -163,10 +156,8 @@ const INITIAL_VACCINES = [
     id: 'vac-5',
     petId: 'pet-4',
     name: 'Antirrábica Felina',
-    appliedDate: '2025-11-01',
-    dueDate: '2026-11-01',
-    batch: 'R-FEL-102',
-    manufacturer: 'MSD',
+    applicationDate: '2025-11-01',
+    nextDoseDate: '2026-11-01',
     veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
     notes: 'Próxima dose agendada para final do ano.'
   }
@@ -398,6 +389,23 @@ function mapApiPetToUi(pet) {
   };
 }
 
+function mapApiVaccinationToUi(vaccination) {
+  const formatDateToBr = (dateString) => {
+    if (!dateString) return '';
+    const cleanDate = dateString.slice(0, 10); 
+    const [year, month, day] = cleanDate.split('-'); 
+    return `${day}/${month}/${year}`;
+  };
+
+  return {
+    id: vaccination.id,
+    petId: vaccination.petId,
+    name: vaccination.vaccineName || '',
+    applicationDate: formatDateToBr(vaccination.applicationDate),
+    nextDoseDate: formatDateToBr(vaccination.nextDoseDate),
+    veterinarian: vaccination.responsible || '',
+  };
+}
 
 function MainContainer() {
   const { user } = useAuth();
@@ -1046,7 +1054,7 @@ function DashboardView({ pets, vaccines, setActiveTab, setSelectedPetForDetail }
   let upToDateCount = 0;
 
   vaccines.forEach((v) => {
-    const due = new Date(v.dueDate);
+    const due = new Date(v.nextDoseDate);
     const diffTime = due - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -1062,7 +1070,7 @@ function DashboardView({ pets, vaccines, setActiveTab, setSelectedPetForDetail }
   const alertsList = vaccines
     .map((v) => {
       const pet = pets.find((p) => p.id === v.petId);
-      const due = new Date(v.dueDate);
+      const due = new Date(v.nextDoseDate);
       const diffTime = due - today;
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return { ...v, pet, diffDays };
@@ -1192,7 +1200,7 @@ function DashboardView({ pets, vaccines, setActiveTab, setSelectedPetForDetail }
                     <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
                       <div className="text-left sm:text-right">
                         <p className="text-[11px] text-slate-400">Próximo Reforço</p>
-                        <p className="text-xs font-bold text-slate-800">{item.dueDate}</p>
+                        <p className="text-xs font-bold text-slate-800">{item.nextDoseDate}</p>
                       </div>
 
                       {item.diffDays < 0 ? (
@@ -1980,12 +1988,12 @@ function PetDetailModal({ pet, vaccines, onClose, onEdit }) {
                       <div>
                         <p className="font-bold text-slate-900">{vac.name}</p>
                         <p className="text-[11px] text-slate-500">
-                          Aplicação: {vac.appliedDate} • Lote: {vac.batch || 'N/I'}
+                          Aplicação: {vac.applicationDate}
                         </p>
                       </div>
                       <div className="text-right">
                         <span className="text-[11px] text-slate-400 block">Próximo Reforço</span>
-                        <span className="font-bold text-emerald-700">{vac.dueDate}</span>
+                        <span className="font-bold text-emerald-700">{vac.nextDoseDate}</span>
                       </div>
                     </div>
                   ))}
@@ -2029,10 +2037,42 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
   const [deletingVaccineId, setDeletingVaccineId] = useState(null);
 
   const { addToast } = useToast();
+
+  useEffect(() => {
+  const loadVaccinations = async () => {
+    if (pets.length === 0) {
+      setVaccines([]);
+      return;
+    }
+
+    try {
+      const results = await Promise.all(
+        pets.map((pet) =>
+          vaccinationService.getAll(pet.id)
+        )
+      );
+
+      const allVaccinations = results.flat();
+
+      setVaccines(
+        allVaccinations.map(mapApiVaccinationToUi)
+      );
+    } catch (error) {
+      console.error('Erro ao carregar vacinas:', error);
+
+      addToast(
+        'Não foi possível carregar o histórico de vacinação.',
+        'error'
+      );
+    }
+  };
+    loadVaccinations();
+  }, [pets]);
+
   const today = new Date();
 
-  const getVaccineStatus = (dueDateStr) => {
-    const due = new Date(dueDateStr);
+  const getVaccineStatus = (nextDoseDateStr) => {
+    const due = new Date(nextDoseDateStr);
     const diffTime = due - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -2048,35 +2088,108 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
     const matchesPet = selectedPetFilter === 'Todos' || vac.petId === selectedPetFilter;
     const matchesSearch =
       vac.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      petName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      vac.batch.toLowerCase().includes(searchTerm.toLowerCase());
+      petName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const statusObj = getVaccineStatus(vac.dueDate);
+    const statusObj = getVaccineStatus(vac.nextDoseDate);
     const matchesStatus = statusFilter === 'Todas' || statusObj.label === statusFilter;
 
     return matchesPet && matchesSearch && matchesStatus;
   });
 
-  const handleSaveVaccine = (vacData) => {
-    if (editingVaccine) {
-      setVaccines(vaccines.map((v) => (v.id === editingVaccine.id ? { ...vacData, id: editingVaccine.id } : v)));
+  
+  const handleSaveVaccine = async (vacData) => {
+    try {
+      const petId = vacData.petId;
+
+      const vaccinationData = {
+        vaccineName: vacData.name.trim(),
+        applicationDate: new Date(
+          `${vacData.applicationDate}T12:00:00`
+        ).toISOString(),
+        nextDoseDate: vacData.nextDoseDate
+          ? new Date(`${vacData.nextDoseDate}T12:00:00`).toISOString()
+          : undefined,
+        responsible: vacData.veterinarian?.trim() || undefined,
+      };
+
+      if (editingVaccine) {
+        const updated = await vaccinationService.update(
+          petId,
+          editingVaccine.id,
+          vaccinationData
+        );
+
+      setVaccines((current) =>
+        current.map((v) =>
+          v.id === editingVaccine.id
+            ? {
+                ...v,
+                ...vacData,
+                id: editingVaccine.id,
+              }
+            : v
+        )
+      );
+
       addToast('Registro de vacina atualizado!', 'success');
     } else {
-      const newVac = {
-        ...vacData,
-        id: 'vac-' + Date.now()
-      };
-      setVaccines([newVac, ...vaccines]);
+      const created = await vaccinationService.create(
+        petId,
+        vaccinationData
+      );
+
+      setVaccines((current) => [
+        {
+          ...vacData,
+          id: created.id,
+          petId,
+        },
+        ...current,
+      ]);
+
       addToast('Nova vacina lançada com sucesso!', 'success');
     }
+
     setIsModalOpen(false);
     setEditingVaccine(null);
+  } catch (error) {
+    console.error('Erro ao salvar vacina:', error);
+
+    const message =
+      error.response?.data?.message ||
+      'Não foi possível salvar a vacina. Verifique sua conexão e tente novamente.';
+
+    addToast(message, 'error');
+    }
   };
 
-  const handleDeleteVaccine = (id) => {
-    setVaccines(vaccines.filter((v) => v.id !== id));
-    addToast('Registro de vacina excluído.', 'info');
-    setDeletingVaccineId(null);
+  
+  const handleDeleteVaccine = async (id) => {
+    try {
+      const vaccine = vaccines.find((v) => v.id === id);
+
+      if (!vaccine) {
+        addToast('Registro de vacina não encontrado.', 'error');
+        return;
+      }
+
+      await vaccinationService.delete(vaccine.petId, id);
+
+      setVaccines((current) =>
+        current.filter((v) => v.id !== id)
+      );
+
+      addToast('Registro de vacina excluído.', 'info');
+      setDeletingVaccineId(null);
+    } catch (error) {
+      console.error('Erro ao excluir vacina:', error);
+
+      addToast(
+        error.response?.data?.message ||
+          'Não foi possível excluir a vacina.',
+        'error'
+      );
+    }
   };
 
   return (
@@ -2164,7 +2277,6 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
                   <th className="p-4">Vacina</th>
                   <th className="p-4">Aplicação</th>
                   <th className="p-4">Próximo Reforço</th>
-                  <th className="p-4">Lote / Fabricante</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Ações</th>
                 </tr>
@@ -2172,7 +2284,7 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
               <tbody className="divide-y divide-slate-100">
                 {filteredVaccines.map((vac) => {
                   const pet = pets.find((p) => p.id === vac.petId);
-                  const status = getVaccineStatus(vac.dueDate);
+                  const status = getVaccineStatus(vac.nextDoseDate);
 
                   return (
                     <tr key={vac.id} className="hover:bg-slate-50/80 transition-colors">
@@ -2195,14 +2307,9 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
 
                       <td className="p-4 font-semibold text-slate-900">{vac.name}</td>
 
-                      <td className="p-4 text-slate-600 font-medium">{vac.appliedDate}</td>
+                      <td className="p-4 text-slate-600 font-medium">{vac.applicationDate}</td>
 
-                      <td className="p-4 font-bold text-emerald-700">{vac.dueDate}</td>
-
-                      <td className="p-4 text-slate-500">
-                        <p className="font-mono text-[11px] text-slate-700">{vac.batch || 'N/I'}</p>
-                        <p className="text-[10px] text-slate-400">{vac.manufacturer || 'N/I'}</p>
-                      </td>
+                      <td className="p-4 font-bold text-emerald-700">{vac.nextDoseDate}</td>
 
                       <td className="p-4">
                         <span className={`px-2.5 py-1 rounded-full border text-[11px] font-bold ${status.color}`}>
@@ -2265,13 +2372,23 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
 }
 
 function VaccineFormModal({ pets, vaccine, onClose, onSave }) {
+  const convertToInputDate = (dateString) => {
+    if (!dateString) return "";
+    if (dateString.includes("-")) return dateString; 
+  
+    const [day, month, year] = dateString.split("/");
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState({
     petId: vaccine?.petId || (pets[0]?.id || ''),
     name: vaccine?.name || '',
-    appliedDate: vaccine?.appliedDate || new Date().toISOString().split('T')[0],
-    dueDate: vaccine?.dueDate || '',
-    batch: vaccine?.batch || '',
-    manufacturer: vaccine?.manufacturer || '',
+    applicationDate: vaccine?.applicationDate
+      ? convertToInputDate(vaccine.applicationDate)
+      : new Date().toISOString().split('T')[0],
+    nextDoseDate: vaccine?.nextDoseDate
+      ? convertToInputDate(vaccine.nextDoseDate)
+      : '',
     veterinarian: vaccine?.veterinarian || '',
     notes: vaccine?.notes || ''
   });
@@ -2282,17 +2399,17 @@ function VaccineFormModal({ pets, vaccine, onClose, onSave }) {
     const errs = {};
     if (!formData.petId) errs.petId = 'Selecione um pet.';
     if (!formData.name.trim()) errs.name = 'Nome da vacina é obrigatório.';
-    if (!formData.appliedDate) errs.appliedDate = 'Data de aplicação é obrigatória.';
-    if (!formData.dueDate) errs.dueDate = 'Data do próximo reforço é obrigatória.';
+    if (!formData.applicationDate) errs.applicationDate = 'Data de aplicação é obrigatória.';
+    if (!formData.nextDoseDate) errs.nextDoseDate = 'Data do próximo reforço é obrigatória.';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const autoCalculateDueDate = (months) => {
-    if (!formData.appliedDate) return;
-    const date = new Date(formData.appliedDate);
+  const autoCalculatenextDoseDate = (months) => {
+    if (!formData.applicationDate) return;
+    const date = new Date(formData.applicationDate);
     date.setMonth(date.getMonth() + months);
-    setFormData({ ...formData, dueDate: date.toISOString().split('T')[0] });
+    setFormData({ ...formData, nextDoseDate: date.toISOString().split('T')[0] });
   };
 
   const handleSubmit = (e) => {
@@ -2348,11 +2465,11 @@ function VaccineFormModal({ pets, vaccine, onClose, onSave }) {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Data da Aplicação*</label>
               <input
                 type="date"
-                value={formData.appliedDate}
-                onChange={(e) => setFormData({ ...formData, appliedDate: e.target.value })}
+                value={formData.applicationDate}
+                onChange={(e) => setFormData({ ...formData, applicationDate: e.target.value })}
                 className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
               />
-              {errors.appliedDate && <p className="text-rose-600 text-[11px] mt-0.5">{errors.appliedDate}</p>}
+              {errors.applicationDate && <p className="text-rose-600 text-[11px] mt-0.5">{errors.applicationDate}</p>}
             </div>
 
             <div>
@@ -2360,7 +2477,7 @@ function VaccineFormModal({ pets, vaccine, onClose, onSave }) {
                 <label className="block text-xs font-semibold text-slate-700">Data do Reforço*</label>
                 <button
                   type="button"
-                  onClick={() => autoCalculateDueDate(12)}
+                  onClick={() => autoCalculatenextDoseDate(12)}
                   className="text-[10px] text-emerald-600 font-bold hover:underline"
                 >
                   +1 ano
@@ -2368,38 +2485,13 @@ function VaccineFormModal({ pets, vaccine, onClose, onSave }) {
               </div>
               <input
                 type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                value={formData.nextDoseDate}
+                onChange={(e) => setFormData({ ...formData, nextDoseDate: e.target.value })}
                 className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
               />
-              {errors.dueDate && <p className="text-rose-600 text-[11px] mt-0.5">{errors.dueDate}</p>}
+              {errors.nextDoseDate && <p className="text-rose-600 text-[11px] mt-0.5">{errors.nextDoseDate}</p>}
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Número do Lote</label>
-              <input
-                type="text"
-                value={formData.batch}
-                onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
-                placeholder="Ex: RB-2026-X9"
-                className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Fabricante / Laboratório</label>
-              <input
-                type="text"
-                value={formData.manufacturer}
-                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                placeholder="Ex: Zoetis, MSD"
-                className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
-              />
-            </div>
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Veterinário Responsável / CRMV</label>
             <input
