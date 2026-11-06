@@ -5,6 +5,7 @@ import { vaccinationService } from './services/vaccinationService';
 import { medicationService } from './services/medicationService';
 import MedicationsPage from './components/medications/MedicationsPage';
 import AppointmentsPage from './components/appointments/AppointmentsPage';
+import RemindersPage from './components/reminders/RemindersPage';
 import {
   LayoutDashboard,
   Dog,
@@ -45,6 +46,7 @@ import {
   Check,
   Heart,
   CalendarClock,
+  BellRing
 } from 'lucide-react';
 
 // ==========================================
@@ -486,7 +488,6 @@ function MainContainer() {
               {!isSidebarCollapsed && (
                 <div>
                   <h1 className="font-bold text-base text-slate-900 leading-tight">Animal Care</h1>
-                  <p className="text-[11px] text-emerald-600 font-semibold tracking-wide">Figma UI • PI-2</p>
                 </div>
               )}
             </div>
@@ -540,11 +541,10 @@ function MainContainer() {
               collapsed={isSidebarCollapsed}
             />
             <SidebarItem
-              icon={<Award className="w-5 h-5" />}
-              label="Qualidade & A11y"
-              tag="005"
-              active={activeTab === 'quality'}
-              onClick={() => setActiveTab('quality')}
+              icon={<BellRing className="w-5 h-5" />}
+              label="Lembretes"
+              active={activeTab === 'reminders'}
+              onClick={() => setActiveTab('reminders')}
               collapsed={isSidebarCollapsed}
             />
           </nav>
@@ -578,6 +578,7 @@ function MainContainer() {
                 {activeTab === 'vaccines' && 'Histórico de Vacinação'}
                 {activeTab === 'medications' && 'Controle de Medicamentos'}
                 {activeTab === 'appointments' && 'Consultas Veterinárias'}
+                {activeTab === 'reminders' && 'Lembretes'}
                 {activeTab === 'quality' && 'Acessibilidade & QA'}
               </h2>
             </div>
@@ -678,12 +679,11 @@ function MainContainer() {
                     }}
                   />
                   <SidebarItem
-                    icon={<Award className="w-5 h-5" />}
-                    label="Qualidade & A11y"
-                    tag="005"
-                    active={activeTab === 'quality'}
+                    icon={<BellRing className="w-5 h-5" />}
+                    label="Lembretes"
+                    active={activeTab === 'reminders'}
                     onClick={() => {
-                      setActiveTab('quality');
+                      setActiveTab('reminders');
                       setIsMobileMenuOpen(false);
                     }}
                   />
@@ -735,6 +735,12 @@ function MainContainer() {
           )}
           {activeTab === 'appointments' && (
             <AppointmentsPage
+              pets={pets}
+              addToast={addToast}
+            />
+          )}
+          {activeTab === 'reminders' && (
+            <RemindersPage
               pets={pets}
               addToast={addToast}
             />
@@ -1510,7 +1516,7 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
       {/* Top Header Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Gerenciamento de Pets (CRUD)</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Gerenciamento de Pets</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Cadastre, edite e consulte detalhes de todos os animais sob seus cuidados.
           </p>
@@ -2247,7 +2253,7 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Histórico de Vacinação (CRUD)</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Histórico de Vacinação</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Controle completo de aplicações, lotes, laboratórios e alertas de renovação por pet.
           </p>
