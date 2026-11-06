@@ -3,6 +3,8 @@ import { authService } from './services/authService';
 import { petService } from './services/petService';
 import { vaccinationService } from './services/vaccinationService';
 import { medicationService } from './services/medicationService';
+import { appointmentService } from './services/appointmentService';
+import { reminderService } from './services/reminderService';
 import MedicationsPage from './components/medications/MedicationsPage';
 import AppointmentsPage from './components/appointments/AppointmentsPage';
 import RemindersPage from './components/reminders/RemindersPage';
@@ -423,6 +425,9 @@ function MainContainer() {
   // App Data State
   const [pets, setPets] = useState([]);
   const [vaccines, setVaccines] = useState(() => loadStorage('@AnimalCare:vaccines', INITIAL_VACCINES));
+  const [medicationCount, setMedicationCount] = useState(0);
+  const [appointmentCount, setAppointmentCount] = useState(0);
+  const [reminderCount, setReminderCount] = useState(0);
   const [selectedPetForDetail, setSelectedPetForDetail] = useState(null);
 
   useEffect(() => {
@@ -465,6 +470,66 @@ function MainContainer() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadRecordCounts() {
+      async function countRecords(service, property, petId) {
+        const response = await service.getAll(petId);
+
+        if (Array.isArray(response)) return response.length;
+
+        if (Array.isArray(response?.[property])) {
+          return response[property].length;
+        }
+
+        if (Array.isArray(response?.data)) {
+          return response.data.length;
+        }
+
+        return 0;
+      }
+
+      async function countForAllPets(service, property) {
+        const results = await Promise.all(
+          pets.map((pet) =>
+            countRecords(service, property, pet.id).catch((error) => {
+              console.error(
+                `Erro ao contar ${property} do pet ${pet.name}:`,
+                error
+              );
+              return 0;
+            })
+          )
+        );
+
+        return results.reduce((total, count) => total + count, 0);
+      }
+
+      const [medications, appointments, reminders] = await Promise.all([
+        countForAllPets(medicationService, 'medications'),
+        countForAllPets(appointmentService, 'appointments'),
+        countForAllPets(reminderService, 'reminders'),
+      ]);
+
+      if (!cancelled) {
+        setMedicationCount(medications);
+        setAppointmentCount(appointments);
+        setReminderCount(reminders);
+      }
+    }
+
+    loadRecordCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, pets]);
+
 
   if (!user) {
     return <AuthScreen />;
@@ -529,6 +594,7 @@ function MainContainer() {
             <SidebarItem
               icon={<Pill className="w-5 h-5" />}
               label="Medicamentos"
+              badge={medicationCount}
               active={activeTab === 'medications'}
               onClick={() => setActiveTab('medications')}
               collapsed={isSidebarCollapsed}
@@ -536,6 +602,7 @@ function MainContainer() {
             <SidebarItem
               icon={<CalendarClock className="w-5 h-5" />}
               label="Consultas Veterinárias"
+              badge={appointmentCount}
               active={activeTab === 'appointments'}
               onClick={() => setActiveTab('appointments')}
               collapsed={isSidebarCollapsed}
@@ -543,6 +610,7 @@ function MainContainer() {
             <SidebarItem
               icon={<BellRing className="w-5 h-5" />}
               label="Lembretes"
+              badge={reminderCount}
               active={activeTab === 'reminders'}
               onClick={() => setActiveTab('reminders')}
               collapsed={isSidebarCollapsed}
@@ -600,11 +668,21 @@ function MainContainer() {
             <div className="h-6 w-px bg-slate-200 mx-1 hidden sm:block" />
 
             <div className="flex items-center gap-2.5 pl-1">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/20"
-              />
+              <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="w-6 h-6 text-gray-800"
+                  aria-label="Avatar do usuário"
+                  role="img"
+                >
+                  <circle cx="12" cy="8" r="4" fill="currentColor" />
+                  <path
+                    d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
               <div className="hidden sm:block text-left">
                 <p className="text-xs font-bold text-slate-900 leading-tight">{user.name}</p>
                 <p className="text-[10px] text-slate-400 font-medium">{user.role}</p>
@@ -731,18 +809,21 @@ function MainContainer() {
             <MedicationsPage
               pets={pets}
               addToast={addToast}
+              onCountChange={setMedicationCount}
             />
           )}
           {activeTab === 'appointments' && (
             <AppointmentsPage
               pets={pets}
               addToast={addToast}
+              onCountChange={setAppointmentCount}
             />
           )}
           {activeTab === 'reminders' && (
             <RemindersPage
               pets={pets}
               addToast={addToast}
+              onCountChange={setReminderCount}
             />
           )}
           {activeTab === 'quality' && <QualityDocumentationView />}
@@ -815,11 +896,21 @@ function SidebarUserProfile({ collapsed }) {
   return (
     <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-2xl border border-slate-200/80">
       <div className="flex items-center gap-2.5 min-w-0">
-        <img
-          src={user.avatar}
-          alt={user.name}
-          className="w-9 h-9 rounded-full object-cover ring-2 ring-emerald-500/20 shrink-0"
-        />
+        <div className="w-9 h-9 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center shrink-0">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="w-7 h-7 text-gray-800"
+            aria-label="Avatar do usuário"
+            role="img"
+          >
+            <circle cx="12" cy="8" r="4" fill="currentColor" />
+            <path
+              d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
         <div className="truncate">
           <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
           <p className="text-[10px] text-slate-500 truncate">{user.crmv || user.role}</p>

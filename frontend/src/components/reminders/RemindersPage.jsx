@@ -241,7 +241,7 @@ function ReminderFormModal({
   );
 }
 
-export default function RemindersPage({ pets = [], addToast }) {
+export default function RemindersPage({ pets = [], addToast,  onCountChange }) {
   const [reminders, setReminders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPet, setSelectedPet] = useState('all');
@@ -285,7 +285,10 @@ export default function RemindersPage({ pets = [], addToast }) {
         })
       );
 
-      setReminders(results.flat());
+       const allReminders = results.flat();
+
+      setReminders(allReminders);
+      onCountChange?.(allReminders.length);
     } catch (error) {
       console.error('Erro ao carregar lembretes:', error);
       notify(
@@ -296,8 +299,7 @@ export default function RemindersPage({ pets = [], addToast }) {
     } finally {
       setIsLoading(false);
     }
-  }, [pets, notify]);
-
+  }, [pets, notify, onCountChange]);
   useEffect(() => {
     loadReminders();
   }, [loadReminders]);
@@ -397,15 +399,19 @@ export default function RemindersPage({ pets = [], addToast }) {
         reminderToDelete.id
       );
 
-      setReminders((current) =>
-        current.filter(
+      setReminders((current) => {
+        const updatedReminders = current.filter(
           (item) =>
             !(
               String(item.id) === String(reminderToDelete.id) &&
               String(item.petId) === String(reminderToDelete.petId)
             )
-        )
-      );
+        );
+
+        onCountChange?.(updatedReminders.length);
+
+        return updatedReminders;
+      });
 
       notify('Lembrete excluído com sucesso!', 'success');
       setReminderToDelete(null);

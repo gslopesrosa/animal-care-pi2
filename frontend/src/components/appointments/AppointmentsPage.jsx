@@ -37,7 +37,7 @@ function formatDate(date) {
   });
 }
 
-export default function AppointmentsPage({ pets = [], addToast }) {
+export default function AppointmentsPage({ pets = [], addToast, onCountChange, }) {
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPet, setSelectedPet] = useState('all');
@@ -77,7 +77,10 @@ export default function AppointmentsPage({ pets = [], addToast }) {
         })
       );
 
-      setAppointments(results.flat());
+      const allAppointments = results.flat();
+
+      setAppointments(allAppointments);
+      onCountChange?.(allAppointments.length);
     } catch (error) {
       console.error('Erro ao carregar consultas:', error);
       notify(
@@ -88,7 +91,7 @@ export default function AppointmentsPage({ pets = [], addToast }) {
     } finally {
       setIsLoading(false);
     }
-  }, [pets, addToast]);
+  }, [pets, addToast, onCountChange]);
 
   useEffect(() => {
     loadAppointments();
@@ -168,15 +171,19 @@ export default function AppointmentsPage({ pets = [], addToast }) {
         appointmentToDelete.id
       );
 
-      setAppointments((current) =>
-        current.filter(
-          (item) =>
-            !(
-              String(item.id) === String(appointmentToDelete.id) &&
-              String(item.petId) === String(appointmentToDelete.petId)
-            )
-        )
-      );
+        setAppointments((current) => {
+            const updatedAppointments = current.filter(
+            (item) =>
+                !(
+                String(item.id) === String(appointmentToDelete.id) &&
+                String(item.petId) === String(appointmentToDelete.petId)
+                )
+            );
+
+            onCountChange?.(updatedAppointments.length);
+
+            return updatedAppointments;
+        });
 
       notify('Consulta excluída com sucesso!', 'success');
       setAppointmentToDelete(null);

@@ -37,7 +37,7 @@ function toApiDate(date) {
   return date ? new Date(`${date}T12:00:00.000Z`).toISOString() : null;
 }
 
-export default function MedicationsPage({ pets = [], addToast }) {
+export default function MedicationsPage({ pets = [], addToast, onCountChange, }) {
   const [medications, setMedications] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPet, setSelectedPet] = useState('all');
@@ -85,7 +85,10 @@ export default function MedicationsPage({ pets = [], addToast }) {
         })
       );
 
-      setMedications(results.flat());
+      const allMedications = results.flat();
+
+      setMedications(allMedications);
+      onCountChange?.(allMedications.length);
     } catch (error) {
       console.error('Erro ao carregar medicamentos:', error);
       notify(
@@ -96,7 +99,7 @@ export default function MedicationsPage({ pets = [], addToast }) {
     } finally {
       setIsLoading(false);
     }
-  }, [pets, addToast]);
+  }, [pets, addToast, onCountChange]);
 
   useEffect(() => {
     loadMedications();
@@ -175,11 +178,19 @@ export default function MedicationsPage({ pets = [], addToast }) {
         medicationToDelete.id
       );
 
-      setMedications((current) =>
-        current.filter(
-          (item) => item.id !== medicationToDelete.id
-        )
-      );
+        setMedications((current) => {
+        const updatedMedications = current.filter(
+          (item) =>
+            !(
+              String(item.id) === String(medicationToDelete.id) &&
+              String(item.petId) === String(medicationToDelete.petId)
+            )
+        );
+
+        onCountChange?.(updatedMedications.length);
+
+        return updatedMedications;
+      });
 
       notify('Medicamento excluído com sucesso!', 'success');
       setMedicationToDelete(null);
