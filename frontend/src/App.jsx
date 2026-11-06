@@ -2,11 +2,15 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { authService } from './services/authService';
 import { petService } from './services/petService';
 import { vaccinationService } from './services/vaccinationService';
+import { medicationService } from './services/medicationService';
+import MedicationsPage from './components/medications/MedicationsPage';
+import AppointmentsPage from './components/appointments/AppointmentsPage';
 import {
   LayoutDashboard,
   Dog,
   Cat,
   Syringe,
+  Pill,
   User,
   Lock,
   Mail,
@@ -39,7 +43,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Check,
-  Heart
+  Heart,
+  CalendarClock,
 } from 'lucide-react';
 
 // ==========================================
@@ -521,6 +526,20 @@ function MainContainer() {
               collapsed={isSidebarCollapsed}
             />
             <SidebarItem
+              icon={<Pill className="w-5 h-5" />}
+              label="Medicamentos"
+              active={activeTab === 'medications'}
+              onClick={() => setActiveTab('medications')}
+              collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
+              icon={<CalendarClock className="w-5 h-5" />}
+              label="Consultas Veterinárias"
+              active={activeTab === 'appointments'}
+              onClick={() => setActiveTab('appointments')}
+              collapsed={isSidebarCollapsed}
+            />
+            <SidebarItem
               icon={<Award className="w-5 h-5" />}
               label="Qualidade & A11y"
               tag="005"
@@ -555,8 +574,10 @@ function MainContainer() {
               <span className="text-xs font-semibold text-slate-300 hidden sm:inline-block">/</span>
               <h2 className="text-sm font-bold text-slate-800 capitalize">
                 {activeTab === 'dashboard' && 'Visão Geral & Indicadores'}
-                {activeTab === 'pets' && 'Gestão de Pets (CRUD)'}
+                {activeTab === 'pets' && 'Gestão de Pets'}
                 {activeTab === 'vaccines' && 'Histórico de Vacinação'}
+                {activeTab === 'medications' && 'Controle de Medicamentos'}
+                {activeTab === 'appointments' && 'Consultas Veterinárias'}
                 {activeTab === 'quality' && 'Acessibilidade & QA'}
               </h2>
             </div>
@@ -639,6 +660,24 @@ function MainContainer() {
                     }}
                   />
                   <SidebarItem
+                    icon={<Pill className="w-5 h-5" />}
+                    label="Medicamentos"
+                    active={activeTab === 'medications'}
+                    onClick={() => {
+                      setActiveTab('medications');
+                      setIsMobileMenuOpen(false);
+                    }}
+                  />
+                  <SidebarItem
+                    icon={<CalendarClock className="w-5 h-5" />}
+                    label="Consultas Veterinárias"
+                    active={activeTab === 'appointments'}
+                    onClick={() => {
+                      setActiveTab('appointments');
+                      setIsMobileMenuOpen(false);
+                    }}
+                  />
+                  <SidebarItem
                     icon={<Award className="w-5 h-5" />}
                     label="Qualidade & A11y"
                     tag="005"
@@ -688,7 +727,18 @@ function MainContainer() {
               setVaccines={setVaccines}
             />
           )}
-
+          {activeTab === 'medications' && (
+            <MedicationsPage
+              pets={pets}
+              addToast={addToast}
+            />
+          )}
+          {activeTab === 'appointments' && (
+            <AppointmentsPage
+              pets={pets}
+              addToast={addToast}
+            />
+          )}
           {activeTab === 'quality' && <QualityDocumentationView />}
         </main>
       </div>

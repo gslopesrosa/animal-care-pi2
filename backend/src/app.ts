@@ -8,6 +8,7 @@ import { petRoutes } from "./modules/pets/routes/pet.routes.js";
 import { vaccinationRoutes } from "./modules/Vaccination/routes/vaccination.routes.js";
 import { medicationRoutes } from "./modules/medications/routes/medication.routes.js";
 import { appointmentRoutes } from "./modules/appointments/routes/appointment.routes.js";
+import { reminderRoutes } from "./modules/reminders/routes/reminder.routes.js";
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use("/pets", petRoutes);
 app.use("/pets/:petId/vaccinations", vaccinationRoutes);
 app.use("/pets/:petId/medications", medicationRoutes);
 app.use("/pets/:petId/appointments", appointmentRoutes);
+app.use("/pets/:petId/reminders", reminderRoutes);
 
 export { app };
