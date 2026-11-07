@@ -8,6 +8,7 @@ import { reminderService } from './services/reminderService';
 import MedicationsPage from './components/medications/MedicationsPage';
 import AppointmentsPage from './components/appointments/AppointmentsPage';
 import RemindersPage from './components/reminders/RemindersPage';
+import { petPhotoService } from './services/petPhotoService';
 import {
   LayoutDashboard,
   Dog,
@@ -350,7 +351,47 @@ function MainContainer() {
     };
   }, [user?.id]);
 
-  
+    useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadVaccinationsFromApi() {
+      if (pets.length === 0) {
+        setVaccines([]);
+        return;
+      }
+
+      try {
+        const results = await Promise.all(
+          pets.map((pet) => vaccinationService.getAll(pet.id))
+        );
+
+        if (cancelled) return;
+
+        const allVaccinations = results.flat();
+
+        setVaccines(
+          allVaccinations.map(mapApiVaccinationToUi)
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Erro ao carregar vacinas:', error);
+          addToast(
+            'Não foi possível carregar o histórico de vacinação.',
+            'error'
+          );
+        }
+      }
+    }
+
+    loadVaccinationsFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, pets]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -1207,11 +1248,21 @@ function DashboardView({ pets, vaccines, setActiveTab, setSelectedPetForDetail }
                     className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-2xl gap-3 hover:border-slate-300 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <img
-                        src={item.pet?.photoUrl || 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200'}
-                        alt={item.pet?.name || 'Pet'}
-                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                      />
+                      {item.pet?.photoUrl ? (
+                        <img
+                          src={item.pet.photoUrl}
+                          alt={item.pet?.name || 'Pet'}
+                          className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
+                          {item.pet?.species?.toLowerCase().includes('gat') ? (
+                            <Cat className="w-5 h-5" />
+                          ) : (
+                            <Dog className="w-5 h-5" />
+                          )}
+                        </div>
+                      )}
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-sm text-slate-900">{item.pet?.name || 'Pet'}</span>
@@ -1410,6 +1461,16 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
   
   const handleSavePet = async (petData) => {
     try {
+      let photoUrl = petData.photoUrl;
+
+      if (petData.photoFile) {
+        const uploadedPhoto = await petPhotoService.upload(
+          petData.photoFile
+        );
+
+        photoUrl = uploadedPhoto.photoUrl;
+      }
+
       const petPayload = {
         name: petData.name,
         species: petData.species,
@@ -1421,7 +1482,7 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
         weight: petData.weight
           ? Number(String(petData.weight).replace(',', '.').replace(/\s*kg$/i, ''))
           : undefined,
-        photoUrl: petData.photoUrl || undefined,
+        photoUrl: photoUrl || undefined,
         color: petData.color || undefined,
         microchip: petData.microchip || undefined,
         notes: petData.notes || undefined,
@@ -1470,14 +1531,40 @@ function PetsCrudView({ pets, setPets, vaccines, setVaccines, selectedPetForDeta
     }
   };
 
-  const handleDeletePet = (id) => {
+  const handleDeletePet = async (id) => {
     const petToDelete = pets.find((p) => p.id === id);
-    setPets(pets.filter((p) => p.id !== id));
-    setVaccines(vaccines.filter((v) => v.petId !== id));
-    addToast(`Pet "${petToDelete?.name || ''}" excluído com sucesso.`, 'info');
-    setDeletingPetId(null);
-    if (selectedPetForDetail?.id === id) {
-      setSelectedPetForDetail(null);
+
+    try {
+      await petService.delete(id);
+
+      setPets((currentPets) =>
+        currentPets.filter((p) => p.id !== id)
+      );
+
+      setVaccines((currentVaccines) =>
+        currentVaccines.filter((v) => v.petId !== id)
+      );
+
+      if (selectedPetForDetail?.id === id) {
+        setSelectedPetForDetail(null);
+      }
+
+      setDeletingPetId(null);
+
+      addToast(
+        `Pet "${petToDelete?.name || ''}" excluído com sucesso.`,
+        'success'
+      );
+    } catch (error) {
+      console.error('Erro ao excluir pet:', error);
+
+      addToast(
+        error.response?.data?.message ||
+          'Não foi possível excluir o pet. Tente novamente.',
+        'error'
+      );
+
+      setDeletingPetId(null);
     }
   };
 
@@ -1723,7 +1810,9 @@ function PetFormModal({ pet, onClose, onSave }) {
   });
 
   const [errors, setErrors] = useState({});
-
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(pet?.photoUrl || '');
+  const [photoError, setPhotoError] = useState('');
   const validate = () => {
     const errs = {};
     if (!formData.name.trim()) errs.name = 'Nome é obrigatório.';
@@ -1739,11 +1828,17 @@ function PetFormModal({ pet, onClose, onSave }) {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSave(formData);
-  };
+  
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  if (!validate() || photoError) return;
+
+  onSave({
+    ...formData,
+    photoFile: selectedPhoto,
+  });
+};
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain">
@@ -1888,18 +1983,67 @@ function PetFormModal({ pet, onClose, onSave }) {
               placeholder="Ex: 982000384729102"
               className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
             />
+          </div>  
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Foto do pet
+            </label>
+
+            {photoPreview && (
+              <img
+                src={photoPreview}
+                alt="Pré-visualização da foto do pet"
+                className="w-24 h-24 mb-3 rounded-xl object-cover border border-slate-200"
+              />
+            )}
+
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+
+                setPhotoError('');
+
+                if (!file) {
+                  setSelectedPhoto(null);
+                  setPhotoPreview(pet?.photoUrl || '');
+                  return;
+                }
+
+                const allowedTypes = [
+                  'image/jpeg',
+                  'image/png',
+                  'image/webp',
+                ];
+
+                if (!allowedTypes.includes(file.type)) {
+                  setPhotoError('Selecione uma imagem JPG, PNG ou WEBP.');
+                  e.target.value = '';
+                  return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                  setPhotoError('A imagem deve ter no máximo 5 MB.');
+                  e.target.value = '';
+                  return;
+                }
+
+                setSelectedPhoto(file);
+                setPhotoPreview(URL.createObjectURL(file));
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900"
+            />
+
+            <p className="text-xs text-slate-500 mt-1">
+              Escolha uma imagem JPG, PNG ou WEBP de até 5 MB.
+            </p>
+
+            {photoError && (
+              <p className="text-xs text-red-600 mt-1">{photoError}</p>
+            )}
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">URL da Foto</label>
-            <input
-              type="url"
-              value={formData.photoUrl}
-              onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
-              placeholder="https://..."
-              className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none"
-            />
-          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Observações Médicas</label>
@@ -2064,47 +2208,59 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
 
   const { addToast } = useToast();
 
-  useEffect(() => {
-  const loadVaccinations = async () => {
-    if (pets.length === 0) {
-      setVaccines([]);
-      return;
-    }
-
-    try {
-      const results = await Promise.all(
-        pets.map((pet) =>
-          vaccinationService.getAll(pet.id)
-        )
-      );
-
-      const allVaccinations = results.flat();
-
-      setVaccines(
-        allVaccinations.map(mapApiVaccinationToUi)
-      );
-    } catch (error) {
-      console.error('Erro ao carregar vacinas:', error);
-
-      addToast(
-        'Não foi possível carregar o histórico de vacinação.',
-        'error'
-      );
-    }
-  };
-    loadVaccinations();
-  }, [pets]);
-
   const today = new Date();
 
+  
   const getVaccineStatus = (nextDoseDateStr) => {
-    const due = new Date(nextDoseDateStr);
-    const diffTime = due - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (!nextDoseDateStr) {
+      return {
+        label: 'Sem Registro',
+        color: 'bg-slate-50 text-slate-700 border-slate-200',
+      };
+    }
 
-    if (diffDays < 0) return { label: 'Atrasada', color: 'bg-rose-50 text-rose-700 border-rose-200' };
-    if (diffDays <= 30) return { label: 'Próxima', color: 'bg-amber-50 text-amber-700 border-amber-200' };
-    return { label: 'Em Dia', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    let due;
+
+    if (nextDoseDateStr.includes('/')) {
+      const [day, month, year] = nextDoseDateStr.split('/').map(Number);
+      due = new Date(year, month - 1, day);
+    } else {
+      due = new Date(nextDoseDateStr);
+    }
+
+    if (Number.isNaN(due.getTime())) {
+      return {
+        label: 'Sem Registro',
+        color: 'bg-slate-50 text-slate-700 border-slate-200',
+      };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.round(
+      (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays < 0) {
+      return {
+        label: 'Atrasada',
+        color: 'bg-rose-50 text-rose-700 border-rose-200',
+      };
+    }
+
+    if (diffDays <= 30) {
+      return {
+        label: 'Próxima',
+        color: 'bg-amber-50 text-amber-700 border-amber-200',
+      };
+    }
+
+    return {
+      label: 'Em Dia',
+      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    };
   };
 
   const filteredVaccines = vaccines.filter((vac) => {
@@ -2316,14 +2472,21 @@ function VaccinesCrudView({ pets, vaccines, setVaccines }) {
                     <tr key={vac.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
+                          {pet?.photoUrl ? (
                           <img
-                            src={
-                              pet?.photoUrl ||
-                              'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200'
-                            }
+                            src={pet.photoUrl}
                             alt={pet?.name || 'Pet'}
                             className="w-9 h-9 rounded-xl object-cover border border-slate-200"
                           />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-500">
+                            {pet?.species?.toLowerCase().includes('gat') ? (
+                              <Cat className="w-5 h-5" />
+                            ) : (
+                              <Dog className="w-5 h-5" />
+                            )}
+                          </div>
+                        )}
                           <div>
                             <span className="font-bold text-slate-900 block text-sm">{pet?.name || 'Pet'}</span>
                             <span className="text-[11px] text-slate-500">{pet?.species}</span>
