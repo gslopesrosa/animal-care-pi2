@@ -51,127 +51,6 @@ import {
   BellRing
 } from 'lucide-react';
 
-// ==========================================
-// 1. INITIAL MOCK DATA & LOCALSTORAGE HELPERS
-// ==========================================
-
-const INITIAL_USER = {
-  id: 'u1',
-  name: 'Dra. Elena Silva',
-  email: 'elena@animalcare.com',
-  role: 'Tutora & Veterinária',
-  crmv: 'CRMV-SP 54321',
-  avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
-  token: 'jwt-token-animal-care-figma-2026'
-};
-
-const INITIAL_PETS = [
-  {
-    id: 'pet-1',
-    name: 'Rex',
-    species: 'Cão',
-    breed: 'Golden Retriever',
-    gender: 'Macho',
-    age: '3 anos',
-    birthDate: '2023-04-12',
-    weight: '28.5 kg',
-    color: 'Dourado',
-    microchip: '982000384729102',
-    photoUrl: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=600',
-    notes: 'Dócil e muito ativo. Alergia alimentar a corantes artificiais em rações.'
-  },
-  {
-    id: 'pet-2',
-    name: 'Mia',
-    species: 'Gato',
-    breed: 'Siamês',
-    gender: 'Fêmea',
-    age: '2 anos',
-    birthDate: '2024-02-18',
-    weight: '3.8 kg',
-    color: 'Creme e Marrom',
-    microchip: '982000384729999',
-    photoUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=600',
-    notes: 'Castrada. Vive exclusivamente em ambiente interno.'
-  },
-  {
-    id: 'pet-3',
-    name: 'Thor',
-    species: 'Cão',
-    breed: 'Bulldog Francês',
-    gender: 'Macho',
-    age: '4 anos',
-    birthDate: '2022-09-05',
-    weight: '12.2 kg',
-    color: 'Tigrado',
-    microchip: '982000384729111',
-    photoUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=600',
-    notes: 'Acompanhamento respiratório preventivo nos dias mais quentes.'
-  },
-  {
-    id: 'pet-4',
-    name: 'Lunna',
-    species: 'Gato',
-    breed: 'Persa',
-    gender: 'Fêmea',
-    age: '1 ano',
-    birthDate: '2025-05-10',
-    weight: '3.1 kg',
-    color: 'Branca',
-    microchip: '982000384729333',
-    photoUrl: 'https://images.unsplash.com/photo-1573865526739-10659fec78a5?auto=format&fit=crop&q=80&w=600',
-    notes: 'Higiene ocular diária e escovação contínua de pelagem.'
-  }
-];
-
-const INITIAL_VACCINES = [
-  {
-    id: 'vac-1',
-    petId: 'pet-1',
-    name: 'Antirrábica (Raiva)',
-    applicationDate: '2025-11-10',
-    nextDoseDate: '2026-11-10',
-    veterinarian: 'Dr. Marcos Souza (CRMV-SP 12345)',
-    notes: 'Aplicação sem reações adversas.'
-  },
-  {
-    id: 'vac-2',
-    petId: 'pet-1',
-    name: 'V10 (Polivalente Canina)',
-    applicationDate: '2025-10-01',
-    nextDoseDate: '2026-10-01',
-    veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
-    notes: 'Reforço anual aplicado com sucesso.'
-  },
-  {
-    id: 'vac-3',
-    petId: 'pet-2',
-    name: 'Quádrupla Felina (V4)',
-    applicationDate: '2025-11-15',
-    nextDoseDate: '2026-11-15',
-    veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
-    notes: 'Proteção contra rinotraqueíte, calicivirose e panleucopenia.'
-  },
-  {
-    id: 'vac-4',
-    petId: 'pet-3',
-    name: 'Gripe Canina (Traqueobronquite)',
-    applicationDate: '2025-09-01',
-    nextDoseDate: '2026-09-01',
-    veterinarian: 'Dr. Renato Lima (CRMV-SP 88912)',
-    notes: 'Vacina com atraso no reforço.'
-  },
-  {
-    id: 'vac-5',
-    petId: 'pet-4',
-    name: 'Antirrábica Felina',
-    applicationDate: '2025-11-01',
-    nextDoseDate: '2026-11-01',
-    veterinarian: 'Dra. Elena Silva (CRMV-SP 54321)',
-    notes: 'Próxima dose agendada para final do ano.'
-  }
-];
-
 const loadStorage = (key, fallback) => {
   try {
     const item = localStorage.getItem(key);
@@ -424,7 +303,7 @@ function MainContainer() {
 
   // App Data State
   const [pets, setPets] = useState([]);
-  const [vaccines, setVaccines] = useState(() => loadStorage('@AnimalCare:vaccines', INITIAL_VACCINES));
+  const [vaccines, setVaccines] = useState([]);
   const [medicationCount, setMedicationCount] = useState(0);
   const [appointmentCount, setAppointmentCount] = useState(0);
   const [reminderCount, setReminderCount] = useState(0);
@@ -1867,8 +1746,8 @@ function PetFormModal({ pet, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl relative animate-scale-up my-8">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain">
+      <div className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain p-4 sm:p-6 shadow-2xl relative animate-scale-up my-0 sm:my-8">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
           <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
             <Dog className="w-5 h-5 text-emerald-600" />
